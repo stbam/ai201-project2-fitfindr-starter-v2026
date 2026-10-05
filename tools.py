@@ -23,10 +23,34 @@ the description has to say what is *in* the list.
 import config  # noqa: F401 — you'll use this in search_listings
 from generate import generate
 from utils.data_loader import load_listings
+import re
 
 
 # ── Tool 1: search_listings ───────────────────────────────────────────────────
+_STOPWORDS = {
+    "a", "an", "and", "the", "for", "with", "under", "over", "in", "of"
+}
 
+def _keywords(text: str) -> set[str]:
+    """Lowercase words worth matching on, stopwords removed."""
+    words = re.findall(r"[a-z0-9']+", (text or "").lower())
+    return {w for w in words if w not in _STOPWORDS and len(w) > 1}
+
+def _size_tokens(size: str) -> set[str]:
+    cleaned = re.sub(r"\([^)]*\)", " ", size or "") # drop parentheticals
+    parts = [p.strip().upper() for p in cleaned.split("/")]
+    return {p for p in parts if p}
+
+def _size_matches(wanted: str, listing_size: str) -> bool:
+    if not wanted:
+        return True
+    listing_tokens = _size_tokens(listing_size)
+    if any(token.startswith("ONE SIZE") for token in listing_tokens):
+        return True
+    return bool(_size_tokens(wanted) & listing_tokens)
+
+
+    
 def search_listings(
     description: str,
     size: str | None = None,
@@ -79,7 +103,34 @@ def search_listings(
         python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
     """
     # TODO: replace this with your implementation
-    return []
+    listings = load_listings()
+    query_words = _keywords(description)
+
+    matches = []
+
+    for listing in listings:
+        if max_price is not None and float(listing.get("price", 0)) > float(max_price):
+            continue
+
+        if size is not None and not _size_matches(size, str(listing.get("size", ""))):
+            continue
+
+        search_text = " ".join([
+            str(listing.get("title", "")),
+            str(listing.get("description", "")),
+            " ".join(listing.get("style_tags", []) or []),
+            str(listing.get("category", "")),
+        ])
+
+        score = len(_keywords(search_text) & query_words)
+        if score == 0:
+            continue
+
+        matches.append((score, listing))
+
+    matches.sort(key=lambda item: item[0], reverse=True)
+    return [listing for _, listing in matches[:config.SEARCH_RESULT_LIMIT]]
+
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
@@ -112,9 +163,44 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    if not isinstance(new_item, dict):
+        return "I need an item to style before I can suggest an outfit."
 
+    item_name = new_item.get("title", "this thrift find")
+    item_category = new_item.get("category", "piece")
+    item_colors = ", ".join(new_item.get("colors", []) or ["neutral"])
+    item_tags = ", ".join(new_item.get("style_tags", []) or ["vintage"])
+
+    wardrobe_items = wardrobe.get("items", []) if isinstance(wardrobe, dict) else []
+
+    if not wardrobe_items:
+        prompt = (
+            "You are a helpful wardrobe stylist. Suggest 2 outfit ideas for a thrift find. "
+            f"Item: {item_name}. Category: {item_category}. Colors: {item_colors}. "
+            f"Style tags: {item_tags}. Keep the suggestions practical, clear, and "
+            "specific enough to recreate. Mention the type of bottom, top, or layer "
+            "that would work with it."
+        )
+    else:
+        wardrobe_lines = "\n".join(
+            f"- {item.get('name', 'Unknown item')} ({item.get('category', 'unknown')}, "
+            f"colors: {', '.join(item.get('colors', []) or ['unknown'])})"
+            for item in wardrobe_items
+        )
+
+        prompt = (
+            "You are a helpful wardrobe stylist. Use the user's existing wardrobe to "
+            "suggest 2 outfit ideas that work with this thrift find. "
+            f"Item: {item_name}. Category: {item_category}. Colors: {item_colors}. "
+            f"Style tags: {item_tags}. User wardrobe:\n{wardrobe_lines}\n"
+            "Name at least one existing wardrobe piece in each suggestion and explain "
+            "why it works."
+        )
+    return generate(
+        prompt,
+        system="You are a concise wardrobe stylist who gives practical outfit suggestions.",
+        temperature=0.8,
+    )
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
 
@@ -152,5 +238,31 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    if not isinstance(new_item, dict):
+        return "Found a great thrift piece and I’m still figuring out the exact vibe."
+
+    if not outfit or not outfit.strip():
+        item_name = new_item.get("title", "this thrift find")
+        item_price = new_item.get("price", "unknown")
+        item_platform = new_item.get("platform", "thrift app")
+        return (
+            f"Found {item_name} for ${item_price} on {item_platform}. "
+            "This one has exactly the kind of vintage energy I was hoping to find."
+        )
+
+    item_name = new_item.get("title", "this thrift find")
+    item_price = new_item.get("price", "unknown")
+    item_platform = new_item.get("platform", "thrift app")
+
+    prompt = (
+        "Write a real thrift caption that feels like a person posted it on social media. "
+        "Keep it to 2-4 sentences. It should sound natural, not like a product description. "
+        f"Item: {item_name}. Price: ${item_price}. Platform: {item_platform}. "
+        f"Outfit idea: {outfit}. Make it specific to the vibe and include the item, price, and platform naturally."
+    )
+
+    return generate(
+        prompt,
+        system="You are a social media caption writer who creates casual, believable thrift-post captions.",
+        temperature=0.9,
+    )

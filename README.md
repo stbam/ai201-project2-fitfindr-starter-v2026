@@ -39,9 +39,7 @@
 
 ## What This Does
 
-<!-- Three or four sentences: what a user asks for, and what they get back. -->
-
-
+FitFindr takes a plain-language shopping request like "vintage graphic tee under $30, size M" and turns it into a structured search. It finds matching listings, suggests outfit combinations from the user’s wardrobe, and writes a short social caption for the selected item. The agent uses session state to carry the item from search into styling and caption generation, so the user only types the original request once.
 
 ---
 
@@ -60,23 +58,26 @@
 ### `search_listings`
 
 - **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+  returns a list of dicts of relevant listings to the query after searching for the listings data for items matching a description, and optionally a size and a price ceiling.
+
+- **Inputs:** description: str, size: str | None = None, max_price: float | None = None
+- **Returns:** list[dict]
+- **When it has nothing:** Returns an empty list when nothing matches — an empty list, not None and not an exception. Your loop branches on this.
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** takes in a dictionary and wardrobe dictionary and suggests one two to outfits
+  based off the user's requirements. Calls the model through function generate() to generate suggestions after being fed the two dicts.
+- **Inputs:** new_item: dict, wardrobe: dict
+- **Returns:**A non-empty string with outfit suggestions. With an empty wardrobe, return general styling advice rather than raising or returning "". Unit 4 has you trigger the empty wardrobe on purpose, so decide now what it should do.
+- **When it has nothing:** A non-empty string with outfit suggestions. With an empty wardrobe, return general styling advice rather than raising or returning ""
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** writes a short caption about the fit that an influencer would post about a find. the goal is to make the reader feel energized and interested in the fit.
+- **Inputs:** outfit: str, new_item: dict
+- **Returns:** A two-to-four sentence caption about the outfit.
+- **When it has nothing:** If `outfit` is empty or whitespace, return a descriptive message rather than raising.
 
 ---
 
@@ -93,13 +94,13 @@
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
 
-**Branch rule:**
+**Branch rule:** If `search_listings` returns an empty list, store a helpful message in `session["error"]` and stop. Otherwise, take the first result, store it in `session["selected_item"]`, and continue to `suggest_outfit` and `create_fit_card`.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** I used a regex-based parser in `agent.py` to extract the description, the size, and the price cap from the user’s query. It strips the price phrase and size phrase out of the freeform text, then keeps the rest as the search description.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** `query` -> `parsed` -> `search_results` -> `selected_item` -> `outfit_suggestion` -> `fit_card`; if the search is empty, the loop exits early and leaves the later fields as `None` while setting `error`.
 
 ---
 
@@ -124,17 +125,39 @@ $ python -c "from tools import search_listings; print(search_listings('graphic t
 
 ```
 
+[{'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee', 'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white', 'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.', 'category': 'tops', 'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'], 'size': 'L', 'condition': 'good', 'price': 24.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_017', 'title': 'Mesh Long-Sleeve Top — Black', 'description': 'Sheer black mesh long-sleeve. Great for layering under a graphic tee orover a bralette. Stretchy material, fits true to size.', 'category': 'tops', 'style_tags': ['y2k', 'grunge', 'goth', 'layering'], 'size': 'S/M', 'condition': 'excellent', 'price': 15.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage Band Tee — Faded Grey', 'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes ormajor damage.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 19.0, 'colors': ['grey', 'charcoal'], 'brand': None,'platform': 'depop'}, {'id': 'lst_011', 'title': 'Low-Rise Cargo Pants — Khaki', 'description': 'Y2K eralow-rise cargo pants. Lots of pockets. Khaki color, slightly distressed at the hems. Great for layering with a long tee.', 'category': 'bottoms', 'style_tags': ['y2k', 'cargo', '2000s', 'streetwear'], 'size': 'W29', 'condition': 'fair', 'price': 27.0, 'colors': ['khaki', 'tan'], 'brand': None, 'platform': 'poshmark'}, {'id': 'lst_015', 'title': 'Vintage Graphic Hoodie — Faded Black', 'description': 'Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to theworn-in look.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'graphic', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 26.0, 'colors': ['black', 'charcoal'], 'brand': None, 'platform': 'depop'}]
+
 ```
 $ python -c "from tools import suggest_outfit; ..."
+python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
+
 
 ```
 
+Here are two effortless ways to style your new vintage Levi's:
+
+**1. Casual Streetwear Look**
+
+- **Top:** White ribbed tank top
+- **Outerwear:** Vintage black denim jacket
+- **Shoes:** Chunky white sneakers
+- **Accessories:** Black crossbody bag
+- **Why it works:** The **white ribbed tank top** provides a clean, fitted contrast to the straight-leg vintage denim, leaning into a classic 90s streetwear aesthetic. Layering the black denim jacket adds edge, while the chunky sneakers tie the casual vibe together.
+
+**2. Relaxed Cozy Layers**
+
+- **Top:** Oversized grey crewneck sweatshirt
+- **Accessories:** Brown leather belt, black crossbody bag
+- **Shoes:** Black combat boots
+- **Why it works:** Tucking the hem of the **oversized grey crewneck sweatshirt** into the jeans creates an effortless high-low silhouette (cozy top, structured bottoms). Tying it together with the brown leather belt and grounding the look with black combat boots adds a touch of rugged, vintage contrast.
+
 ```
+
 $ python -c "from tools import create_fit_card; ..."
-
+python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
 ```
 
----
+## Honestly heartbroken these don’t fit me right because the wash on these vintage 501s is literally perfection. Just throwing them on with some beat-up white sneakers and a t-shirt is the easiest outfit ever. Grabbed them on depop for $38 and just want them to go to a good home now!
 
 ## How I Used AI
 
@@ -147,15 +170,15 @@ $ python -c "from tools import create_fit_card; ..."
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- _What I asked for:_ I asked ai to implement search_listings spec, afterwards i tested it and read it to ensure it gave me the right outputs.
+- _What came back:_ Right outputs came back on the first try so i had no changes i needed to do.
+- _What I changed:_ I had to change nothing
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- _What I asked for:_ I asked AI to help me design the outfit prompt so it used the user’s existing wardrobe instead of giving generic advice.
+- _What came back:_ It suggested a prompt that explicitly listed wardrobe items and asked the model to reference them by name.
+- _What I changed:_ I rewrote the `suggest_outfit` prompt to include `wardrobe["items"]`, name at least one piece in each suggestion, and fall back to general styling advice when the wardrobe is empty.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -176,12 +199,12 @@ $ python -c "from tools import create_fit_card; ..."
      into results/. Paste it here and fill in the verdicts. -->
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
-|---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| --------- | ------ | ----- | ----- | ----- | ----- | ----- | ------- |
+| 1.        |        |       |       |       |       |       |         |
+| 2.        |        |       |       |       |       |       |         |
+| 3.        |        |       |       |       |       |       |         |
+| 4.        |        |       |       |       |       |       |         |
+| 5.        |        |       |       |       |       |       |         |
 
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
@@ -210,17 +233,15 @@ that produced it:
      Look for a pattern. Three misses on the same tool is one problem, not
      three. -->
 
-| # | Criterion | Target | Verdict | How I decided |
-|---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| #   | Criterion | Target | Verdict | How I decided |
+| --- | --------- | ------ | ------- | ------------- |
+| 1   |           |        |         |               |
+| 2   |           |        |         |               |
+| 3   |           |        |         |               |
+| 4   |           |        |         |               |
+| 5   |           |        |         |               |
 
 **Diagnoses**
-
-
 
 ---
 
@@ -253,8 +274,6 @@ behaved differently afterwards. If the rewire didn't work, say exactly where it
 broke — the error text and the last thing that worked. That earns the point in
 full. -->
 
-
-
 ---
 
 ## The Improvement
@@ -271,19 +290,17 @@ full. -->
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
-|---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| --------- | ------ | ----- | ----- | ----- | ----- | ----- | ------- |
+| 1.        |        |       |       |       |       |       |         |
+| 2.        |        |       |       |       |       |       |         |
+| 3.        |        |       |       |       |       |       |         |
+| 4.        |        |       |       |       |       |       |         |
+| 5.        |        |       |       |       |       |       |         |
 
 **Did it help, and how do I know:**
 
 <!-- If it made things worse, say that. Honestly reported, that earns full
      credit and is more interesting than one that worked. -->
-
-
 
 ---
 
@@ -292,8 +309,6 @@ full. -->
 <!-- For each criterion still missed: what you'd do, and why you stopped where
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
-
-
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
