@@ -274,6 +274,8 @@ behaved differently afterwards. If the rewire didn't work, say exactly where it
 broke — the error text and the last thing that worked. That earns the point in
 full. -->
 
+I swapped the direct search_listings(...) call in agent.py::run_agent for mcp_client.call_tool("search_listings", {...}). I first ran python mcp_client.py to confirm that the server registered the tool. It printed “Asking mcp_server.py what it offers…” and listed search_listings with its description and inputs. After the swap, nothing behaved differently. Both example queries gave the same results as the direct call (10 listings for the tee query, [] for the ballgown query), and the empty-results branch still stopped before the fit card. The return value stayed a list of dicts, so the branch didn’t need any changes.
+
 ---
 
 ## The Improvement
