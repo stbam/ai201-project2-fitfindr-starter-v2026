@@ -35,6 +35,21 @@ SCENARIOS = [
         "wardrobe": "empty",
         "criterion": None,
     },
+     {
+         # Fit card must contain the item's exact price. Five tries = five
+        # fit cards for the same item.
+            "name": "fit card includes price",
+            "query": "vintage band tee under $40",
+            "wardrobe": "example",
+            "criterion": 4,
+        },
+        {
+                  # A user with nothing saved. Must still get non-empty advice.
+                    "name": "empty wardrobe",
+                    "query": "denim jacket under $50",
+                    "wardrobe": "empty",
+                    "criterion": 5,
+                },
     # TODO: add what your criteria 3, 4 and 5 need.
     #
     # Set "criterion" to the number in criteria.md that the scenario tests.

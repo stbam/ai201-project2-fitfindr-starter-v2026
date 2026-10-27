@@ -58,6 +58,10 @@ Given a query that matches no listings, the agent stops before calling
 
     I would check that the item passed into suggest_outfit has the same id as the item stored in session["selected_item"], because the id is observable and traceable across all three tools.
 
+     **Revised in unit 4:** The item in session["selected_item"] has the same title as the first search result and the item suggest_outfit received, in 5 of 5 tries.
+
+    **Why revised:** The original named what to compare but gave no target, so there was nothing to score a try against.
+
 **Why this target:**
 This is the target chosen because it allows the user to track what was fed into each function and what came out. It is shared across all agent runs.
 
@@ -77,6 +81,11 @@ This is the target chosen because it allows the user to track what was fed into 
      be turned into a number. -->
 
 What would make a fit card generation of new output acceptable is if the core idea remains the same but the variation of how it is delivered or the words in the sentence sent out differs. A user would be unhappy if the price was missing or if the size was not present when it is present in the vector database .
+
+      **Revised in unit 4:** The fit card contains the item's exact price (e.g. $18) in 5 of 5 tries.
+
+      **Why revised:** "The core idea remains the same" couldn't be checked on a single try, and it named no target. The price is the one fact a user would be unhappy to see missing, and its presence is a yes/no check.
+
 **Why this target:**
 Because variety of output is important but only to the point where it doesnt affect the information of the core information, so its important to get that right.
 

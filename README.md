@@ -198,19 +198,80 @@ python -c "from tools import create_fit_card; from utils.data_loader import load
      `python run_eval.py --label before` runs everything and writes the table
      into results/. Paste it here and fill in the verdicts. -->
 
+Source: `results/run_2026-10-26_2307_before.md`, produced by `run_eval.py::main` running `agent.py::run_agent` — 5 tries per scenario, caching off, temperature 0.9, 40 real model calls.
+
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 | --------- | ------ | ----- | ----- | ----- | ----- | ----- | ------- |
-| 1.        |        |       |       |       |       |       |         |
-| 2.        |        |       |       |       |       |       |         |
-| 3.        |        |       |       |       |       |       |         |
-| 4.        |        |       |       |       |       |       |         |
-| 5.        |        |       |       |       |       |       |         |
+| 1. Matching query completes all three tools and returns a fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before `suggest_outfit` with a message naming what to change | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. First search result = `session["selected_item"]` = item `suggest_outfit` received | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card contains the item's exact price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Empty wardrobe still returns a non-empty outfit suggestion | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+How each try was scored:
+
+- **1:** PASS if the try was not stopped early and a fit card came back. All five reached `[3] create_fit_card` (fit cards 189–284 chars).
+- **2:** PASS if the trace ends at `[1]` with `out: [] (empty)` and the session error names what to change. All five stopped after one step.
+- **3:** No dedicated scenario was added for this criterion, so it was scored on the five tries of scenario 1. PASS if the first title in step 1's `out:` matches both `selected_item` and step 2's `in:`. All five showed `Y2K Baby Tee — Butterfly Print` in all three places.
+- **4:** Scored on scenario "fit card includes price" (`vintage band tee under $40`). PASS if `$24` (the selected item's price) appears in the fit card text. All five did.
+- **5:** Scored on scenario "empty wardrobe" (`denim jacket under $50`, `--empty-wardrobe`). PASS if no crash and the outfit suggestion is non-empty. All five returned general styling advice. (The same scenario also ran once more as a leftover diagnostic row with `criterion: None`; those five tries also passed and are not counted.)
+
+**Real output from one try per criterion**
+
+Criterion 1 — `agent.py::run_agent`, try 1, `vintage graphic tee under $30`:
 
 ```
+[1] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+[2] suggest_outfit
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+      out: Here are 2 practical outfit ideas using your new butterfly baby tee and existing wardrobe:  **1. Casual Y2K St…
+[3] create_fit_card
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+      out: obsessed with this butterfly baby tee, giving major early 2000s energy. look so cute with some baggy dark deni…
+```
 
+Criterion 2 — `agent.py::run_agent`, try 1, `designer ballgown size XXS under $5`:
+
+```
+- stopped early: yes — I couldn't find a matching listing. Try changing the item description, size, or maximum price.
+- selected_item: (none)
+- search_results: 0
+
+[1] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: [] (empty)
+```
+
+Criterion 3 — `agent.py::run_agent` session + trace, try 1 of scenario 1:
+
+```
+- selected_item: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+[1] search_listings (via MCP)  out: 10 items: Y2K Baby Tee — Butterfly Print, …
+[2] suggest_outfit             in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+```
+
+Criterion 4 — `tools.py::create_fit_card`, try 1, `vintage band tee under $40`:
+
+```
+- selected_item: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+
+Fit card:
+Found the sickest 2003 tour bootleg tee while digging through the racks the other day. It looks so good tucked into baggy jeans with some beat-up combat boots, or dressed down with khaki trousers and sneakers. Grab it on my depop for $24 before I change my mind and keep it!
+```
+
+Criterion 5 — `tools.py::suggest_outfit`, try 1, `denim jacket under $50`, empty wardrobe:
+
+```
+Here are two practical, easy-to-recreate outfit ideas for your cropped light-wash denim jacket:
+
+**1. The 90s Streetwear Look**
+*   **Top:** A ribbed black or white baby tee.
+*   **Bottoms:** High-waisted, wide-leg utility cargo pants in olive green or beige. 
+*   **Footwear:** Chunky white sneakers (like Nike Air Force 1s).
+*   **Accessories:** A black nylon shoulder bag and simple silver hoop earrings.
+…
 ```
 
 ---
