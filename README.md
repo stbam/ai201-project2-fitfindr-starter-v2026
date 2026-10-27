@@ -200,13 +200,13 @@ python -c "from tools import create_fit_card; from utils.data_loader import load
 
 Source: `results/run_2026-10-26_2307_before.md`, produced by `run_eval.py::main` running `agent.py::run_agent` — 5 tries per scenario, caching off, temperature 0.9, 40 real model calls.
 
-| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
-| --------- | ------ | ----- | ----- | ----- | ----- | ----- | ------- |
-| 1. Matching query completes all three tools and returns a fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 2. Impossible query stops before `suggest_outfit` with a message naming what to change | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 3. First search result = `session["selected_item"]` = item `suggest_outfit` received | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 4. Fit card contains the item's exact price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 5. Empty wardrobe still returns a non-empty outfit suggestion | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| Criterion                                                                              | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict   |
+| -------------------------------------------------------------------------------------- | ------ | ----- | ----- | ----- | ----- | ----- | --------- |
+| 1. Matching query completes all three tools and returns a fit card                     | 4 of 5 | PASS  | PASS  | PASS  | PASS  | PASS  | MET (5/5) |
+| 2. Impossible query stops before `suggest_outfit` with a message naming what to change | 5 of 5 | PASS  | PASS  | PASS  | PASS  | PASS  | MET (5/5) |
+| 3. First search result = `session["selected_item"]` = item `suggest_outfit` received   | 5 of 5 | PASS  | PASS  | PASS  | PASS  | PASS  | MET (5/5) |
+| 4. Fit card contains the item's exact price                                            | 5 of 5 | PASS  | PASS  | PASS  | PASS  | PASS  | MET (5/5) |
+| 5. Empty wardrobe still returns a non-empty outfit suggestion                          | 5 of 5 | PASS  | PASS  | PASS  | PASS  | PASS  | MET (5/5) |
 
 How each try was scored:
 
@@ -268,7 +268,7 @@ Here are two practical, easy-to-recreate outfit ideas for your cropped light-was
 
 **1. The 90s Streetwear Look**
 *   **Top:** A ribbed black or white baby tee.
-*   **Bottoms:** High-waisted, wide-leg utility cargo pants in olive green or beige. 
+*   **Bottoms:** High-waisted, wide-leg utility cargo pants in olive green or beige.
 *   **Footwear:** Chunky white sneakers (like Nike Air Force 1s).
 *   **Accessories:** A black nylon shoulder bag and simple silver hoop earrings.
 …
@@ -294,15 +294,31 @@ Here are two practical, easy-to-recreate outfit ideas for your cropped light-was
      Look for a pattern. Three misses on the same tool is one problem, not
      three. -->
 
-| #   | Criterion | Target | Verdict | How I decided |
-| --- | --------- | ------ | ------- | ------------- |
-| 1   |           |        |         |               |
-| 2   |           |        |         |               |
-| 3   |           |        |         |               |
-| 4   |           |        |         |               |
-| 5   |           |        |         |               |
+# Criterion Target Verdict How I decided
+
+| #   | Criterion                            | Target | Verdict   | How I decided                                                                |
+| --- | ------------------------------------ | ------ | --------- | ---------------------------------------------------------------------------- |
+| 1   | Matching query returns a fit card    | 4 of 5 | MET (5/5) | All 5 tries reached `create_fit_card`; none stopped early                    |
+| 2   | Impossible query stops before tool 2 | 5 of 5 | MET (5/5) | All 5 traces end at step 1 with `[] (empty)` and the "try changing…" message |
+| 3   | Same item through session            | 5 of 5 | MET (5/5) | Step 1's first title = `selected_item` = step 2's `in:` in all 5             |
+| 4   | Fit card has exact price             | 5 of 5 | MET (5/5) | `$24` appears in all 5 fit cards                                             |
+| 5   | Empty wardrobe gives advice          | 5 of 5 | MET (5/5) | All 5 returned non-empty general advice, no crash                            |
 
 **Diagnoses**
+**Diagnoses**
+
+No misses: all five criteria passed 5 of 5. Honestly, my targets were too easy, especially criterion 2.
+
+Criterion 2 only tested a query that shares no words with any listing ("designer ballgown size XXS under $5"). In Milestone 2 I ran two queries that show the gap:
+
+- "red wool scarf under $25" returned an Oversized Flannel Shirt. There are no scarves in `listings.json`; the flannel matched only on "red". The agent styled it and wrote a fit card anyway.
+- "black leather boots under $60" returned Platform Mary Janes first, ahead of the Suede Chelsea Boots, because "black" and "leather" outscored "boots".
+
+Place: the tool and the loop's branch together. Mechanism: `tools.py::search_listings` keeps any listing that shares at least one keyword and weights every keyword equally, so a colour counts as much as the item type. The branch in `agent.py::run_agent` only stops on an empty list, so any query for a missing item that happens to share a colour or material gets past it.
+
+The criterion I'd tighten: "A query for an item type the data doesn't have (e.g. 'red wool scarf') stops before `suggest_outfit` in 5 of 5 tries." Today that would score 0 of 5.
+
+**Arguing the opposite verdict on criterion 2:** "Your agent styled a flannel for someone asking for a scarf. Is that really stopping when nothing matches?" The verdict stays MET, because the criterion as written was met, but the argument is right that the criterion was too narrow, and it's what my improvement targets.
 
 ---
 
