@@ -180,6 +180,18 @@ python -c "from tools import create_fit_card; from utils.data_loader import load
 - _What came back:_ It suggested a prompt that explicitly listed wardrobe items and asked the model to reference them by name.
 - _What I changed:_ I rewrote the `suggest_outfit` prompt to include `wardrobe["items"]`, name at least one piece in each suggestion, and fall back to general styling advice when the wardrobe is empty.
 
+**Unit 4 — Moment 3**
+
+- _What I asked for:_ My model-unavailable test kept succeeding even after I changed my API key — every run ended with "served from cache", even for queries I'd never typed. I asked Claude why.
+- _What came back:_ It found that `generate.py` caches on the prompt sent to the model, not on my query. "red wool scarf" matched the same flannel shirt I'd already styled, so the prompt was identical and came from the cache. It suggested turning the cache off for one run with `AI201_CACHE=0` and passing a fake key on the command line with `GEMINI_API_KEY=broken`, so my real key in `.env` stayed untouched.
+- _What I changed:_ I re-ran with both, which finally triggered the failure, and then added the `except ModelUnavailable` handler in `run_agent` so the user gets "The styling model couldn't be reached…" instead of an error. I kept the cached attempt in the README and noted why it didn't count.
+
+**Unit 4 — Moment 4**
+
+- _What I asked for:_ I asked Claude to help me find something to diagnose, since all five criteria passed 5/5.
+- _What came back:_ It first claimed the Butterfly Baby Tee was the wrong pick for "vintage graphic tee". When we checked `listings.json`, the baby tee is tagged `graphic tee` and has a butterfly graphic, so that claim was wrong and we dropped it. The real weakness came from my own Milestone 2 runs: "red wool scarf" returned a flannel shirt because search keeps anything sharing one word ("red"), and that got past my empty-results branch.
+- _What I changed:_ I used that as my diagnosis and my one improvement: a second branch in `run_agent` that stops when no result contains the requested item type. I checked the AI's claims against the data instead of taking them as given, which is how the wrong one got caught.
+
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
      Don't fill these in during unit 3.
@@ -467,21 +479,55 @@ I swapped the direct search_listings(...) call in agent.py::run_agent for mcp_cl
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
+**What I changed:** Added a second branch to `agent.py::run_agent`, right after the empty-results check. It takes the item type from the last word of the parsed description (`scarf`, `boot`, `tee`, `jacket` — a trailing "s" is stripped so plurals match), keeps only search results whose title, category or style tags contain that word, and stops before `suggest_outfit` if none are left, with the message: *I couldn't find any "scarf" listings — the closest matches only shared a word like a colour or material. Try a different item type, or drop the colour to see what's available.* The branch logs its own `check item type` trace step. Nothing else changed: same prompts, same MCP tool, same return shape.
 
-**Which failure it was meant to fix:**
+I also added one diagnostic scenario to `scenarios.py` — `red wool scarf under $25`, `criterion: None` — so the after-run shows the failure directly.
+
+**Which failure it was meant to fix:** The criterion 2 gap from my diagnosis. `search_listings` keeps any listing sharing one keyword, so "red wool scarf" (no scarves exist in the data) came back with a red flannel shirt, passed the empty check, and got styled and posted as if it were what the user asked for.
 
 ### Run Log — After
 
+Source: `results/run_2026-10-27_1301_after.md`, produced by `run_eval.py::main` running `agent.py::run_agent` — 5 tries per scenario, caching off, 40 real model calls. Scored exactly the same way as the Before run. Completed runs now have four trace steps, so criterion 3 compares step 1's first result with `[3] suggest_outfit`'s input.
+
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 | --------- | ------ | ----- | ----- | ----- | ----- | ----- | ------- |
-| 1.        |        |       |       |       |       |       |         |
-| 2.        |        |       |       |       |       |       |         |
-| 3.        |        |       |       |       |       |       |         |
-| 4.        |        |       |       |       |       |       |         |
-| 5.        |        |       |       |       |       |       |         |
+| 1. Matching query completes all three tools and returns a fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before `suggest_outfit` with a message naming what to change | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. First search result = `session["selected_item"]` = item `suggest_outfit` received | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card contains the item's exact price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Empty wardrobe still returns a non-empty outfit suggestion | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| _Diagnostic: missing item type (`red wool scarf under $25`) stops before `suggest_outfit`_ | 5 of 5 | PASS | PASS | PASS | PASS | PASS | 5/5 (was 0/5) |
 
-**Did it help, and how do I know:**
+**Before vs after, side by side**
+
+| Criterion | Before | After |
+| --------- | ------ | ----- |
+| 1. Matching query returns a fit card | MET (5/5) | MET (5/5) |
+| 2. Impossible query stops | MET (5/5) | MET (5/5) |
+| 3. Same item through session | MET (5/5) | MET (5/5) |
+| 4. Fit card has exact price | MET (5/5) | MET (5/5) |
+| 5. Empty wardrobe gives advice | MET (5/5) | MET (5/5) |
+| Diagnostic: red wool scarf stops | 0/5 — styled a flannel shirt | 5/5 — stopped at `check item type` |
+
+Real output, missing item type, try 1 (`agent.py::run_agent`):
+
+```
+- stopped early: yes — I couldn't find any "scarf" listings — the closest matches only shared a word like a colour or material. Try a different item type, or drop the colour to see what's available.
+- selected_item: (none)
+- search_results: 2
+
+[1] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 2 items: Oversized Flannel Shirt — Plaid Red/Black, Oversized College Crewneck — Faded Red
+[2] check item type
+      in:  scarf
+      out: [] (empty)
+      →    branch: no listing of that type, stopping
+```
+
+Before the change, the same query (Milestone 2, Model unavailable section above) ran all three tools and produced a fit card for the *Oversized Flannel Shirt — Plaid Red/Black*. Search makes no model call, so that result is the same on every try.
+
+**Did it help, and how do I know:** Yes — the scarf query went from styling the wrong item every time to stopping with a message 5 of 5 times, and all five original criteria stayed at 5/5, so the extra branch didn't break the paths that already worked. A side effect I didn't target: "black leather boots under $60" now picks *Suede Chelsea Boots — Tan* instead of *Platform Mary Janes*, because off-type results are filtered out before the first one is chosen.
 
 <!-- If it made things worse, say that. Honestly reported, that earns full
      credit and is more interesting than one that worked. -->
@@ -493,6 +539,18 @@ I swapped the direct search_listings(...) call in agent.py::run_agent for mcp_cl
 <!-- For each criterion still missed: what you'd do, and why you stopped where
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
+
+No criterion is still missed: all five were MET before and after. These are the problems I know are still there.
+
+**1. The item-type check guesses the item from the last word.** `agent.py::run_agent` takes the last word of the description as the item type. That works for how I usually phrase queries ("vintage graphic tee", "denim jacket"), but "tee for summer" would check `summer` and wrongly stop, and "jacket in red" would check `red` and let a red flannel through again. `rstrip("s")` is also crude: it turns "dress" into "dre", which only matches "dress" by luck. What I'd do: match the query against the set of categories and item words that actually exist in `listings.json` instead of guessing by position. I stopped at the simple version because it fixed the failure my diagnosis named and kept the change to one branch.
+
+**2. The search tool still has the underlying problem.** `tools.py::search_listings` still keeps any listing that shares one keyword and weights a colour the same as an item type. The new branch catches the result afterwards, but anything else that calls the tool over MCP gets the same loose results. What I'd do: weight a match on title or category above a match on colour or description, inside the tool. I didn't, because the unit allows one change and changing the tool would also change what criteria 1 and 4 return.
+
+**3. The tightened criterion 2 is only tested on one query.** The improvement went from 0/5 to 5/5 on `red wool scarf under $25`, but that's one input repeated five times, and search is deterministic, so the five tries are identical. What I'd do: add three or four more missing-item queries (e.g. "black leather gloves", "silk tie") before calling it reliable.
+
+**4. Step 1 of the trace hides the parsed values.** It prints `in: dict with keys: description, size, max_price` because `trace.py` shortens dicts to their keys. You can't see from the trace that "red wool scarf under $25" was parsed into `description='red wool scarf'`, `max_price=25.0`. What I'd do: pass the parsed values as a string to `trace.step`. I left it because it doesn't affect any result, only readability.
+
+**5. My original targets were low.** All five passed 5/5 in both runs, so the run logs don't tell a 5/5 agent apart from a better one. Criterion 1 in particular only checks that a fit card comes back, not that the item fits the query.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 

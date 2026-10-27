@@ -154,6 +154,35 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 )
                 return session
 
+            # Second branch (unit 4 improvement): the item type the user asked
+            # for — the last word of the description, e.g. "scarf", "boots",
+            # "tee" — must appear in at least one result. Search keeps anything
+            # sharing a single keyword, so "red wool scarf" used to come back
+            # with a red flannel shirt and sail past the empty check above.
+            item_type = parsed["description"].split()[-1].lower().rstrip("s")
+            on_type = [
+                r for r in session["search_results"]
+                if item_type in " ".join([
+                    str(r.get("title", "")),
+                    str(r.get("category", "")),
+                    " ".join(r.get("style_tags") or []),
+                ]).lower()
+            ]
+            trace.step(
+                "check item type",
+                inputs=item_type,
+                returned=on_type,
+                note="branch: type matched, continuing" if on_type else "branch: no listing of that type, stopping",
+            )
+            if not on_type:
+                session["error"] = (
+                    f"I couldn't find any \"{item_type}\" listings — the closest "
+                    "matches only shared a word like a colour or material. Try a "
+                    "different item type, or drop the colour to see what's available."
+                )
+                return session
+            session["search_results"] = on_type
+
             session["selected_item"] = session["search_results"][0]
 
         elif iteration == 2:

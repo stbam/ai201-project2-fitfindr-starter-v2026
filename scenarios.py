@@ -50,6 +50,14 @@ SCENARIOS = [
                     "wardrobe": "empty",
                     "criterion": 5,
                 },
+    {
+        # Item type not in the data; shares only "red" with a flannel shirt.
+        # Diagnostic for the unit 4 improvement (second branch).
+        "name": "missing item type",
+        "query": "red wool scarf under $25",
+        "wardrobe": "example",
+        "criterion": None,
+    },
     # TODO: add what your criteria 3, 4 and 5 need.
     #
     # Set "criterion" to the number in criteria.md that the scenario tests.
