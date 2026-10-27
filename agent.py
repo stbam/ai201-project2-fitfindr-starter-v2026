@@ -157,14 +157,22 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             session["selected_item"] = session["search_results"][0]
 
         elif iteration == 2:
-            session["outfit_suggestion"] = suggest_outfit(
-                session["selected_item"], session["wardrobe"]
-            )
-
+            try:
+                session["outfit_suggestion"] = suggest_outfit(
+                    session["selected_item"], session["wardrobe"]
+                )
+                trace.step("suggest_outfit", inputs=session["selected_item"], returned=session["outfit_suggestion"])
+            except ModelUnavailable:
+                session["error"] = "The styling model couldn't be reached. Check your internet connection and the API key in .env, then try again."
+                return session
         else:
-            session["fit_card"] = create_fit_card(
-                session["outfit_suggestion"], session["selected_item"]
-            )
+            try:
+                session["fit_card"] = create_fit_card(
+                    session["outfit_suggestion"], session["selected_item"]
+                )
+                trace.step("create_fit_card", inputs=session["selected_item"], returned=session["fit_card"])
+            except ModelUnavailable:
+                        session["error"] = "The styling model couldn't be reached. Check your internet connection and the API key in .env, then try again."
             return session
 
     return session

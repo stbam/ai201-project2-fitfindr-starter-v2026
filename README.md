@@ -260,13 +260,118 @@ that produced it:
 **Happy path**
 
 ```
+python app.py ask 'vintage graphic tee under $30' --trace
+[1] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+[2] suggest_outfit
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+      out: Here are 2 practical outfit ideas using your new baby tee and existing wardrobe:  **1. Retro Streetwear** * **…
+[3] create_fit_card
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+      out: Found this precious little butterfly baby tee and I'm honestly so obsessed. Fits like an absolute dream and gi…
 
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   Here are 2 practical outfit ideas using your new baby tee and existing wardrobe:
+
+**1. Retro Streetwear**
+* **Items to use:** Butterfly baby tee + Baggy dark-wash straight-leg jeans + Chunky white sneakers + Black crossbody bag
+* **Why it works:** The tight-fitting baby tee creates a flattering 90s silhouette when balanced with the volume of the baggy dark-wash jeans. Chunky white sneakers tie in the white from the tee for an effortless, casual look.
+
+**2. Edgy Y2K Contrast**
+* **Items to use:** Butterfly baby tee + Wide-leg khaki trousers + Black combat boots + Vintage black denim jacket
+* **Why it works:** The sweet, pastel butterfly print provides a great contrast against the tougher black combat boots and denim jacket. Pairing the baby tee with wide-leg khaki trousers keeps the proportions balanced and highlights the waist.
+
+  Fit card: Found this precious little butterfly baby tee and I'm honestly so obsessed. Fits like an absolute dream and gives major 2000s pop star off-duty. Grab it on my depop for $18 before I change my mind and keep it! 🦋✨
+
+0 model calls this session, 2 served from cache
 ```
 
 **Empty search**
 
 ```
+python app.py ask 'designer ballgown size XXS under $5' --trace
 
+[1] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: [] (empty)
+
+  I couldn't find a matching listing. Try changing the item description, size, or maximum price.
+
+0 model calls this session
+
+
+```
+
+**Empty wardrobe**
+
+```
+python app.py ask 'denim jacket under $50' --empty-wardrobe --trace
+(running with an empty wardrobe)
+[1] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 7 items: Denim Jacket — Light Wash, Cropped, Vintage Levi's 501 Jeans — Medium Wash, 90s Track Jacket — Navy/White Stripe … +4 more
+[2] suggest_outfit
+      in:  Denim Jacket — Light Wash, Cropped ($42.0, poshmark)
+      out: Here are two practical, easy-to-recreate outfit ideas for your cropped light wash denim jacket:  **1. The 90s …
+[3] create_fit_card
+      in:  Denim Jacket — Light Wash, Cropped ($42.0, poshmark)
+      out: Finally letting go of this cropped light wash denim jacket because I literally never reach for it, but it’s so…
+
+  Found:    Denim Jacket — Light Wash, Cropped — $42.0 on poshmark
+
+  Outfit:   Here are two practical, easy-to-recreate outfit ideas for your cropped light wash denim jacket:
+
+**1. The 90s Streetwear Look**
+*   **Top:** A fitted, black ribbed cotton baby tee.
+*   **Bottom:** High-waisted, wide-leg cargo trousers in olive green or beige.
+*   **Footwear:** Retro white leather sneakers (like Adidas Sambas or Nike Air Force 1s).
+*   **Accessories:** A black nylon shoulder bag and chunky silver hoop earrings.
+*   *Why it works:* The fitted baby tee balances the volume of the wide-leg cargo pants, while the cropped jacket highlights the high waist.
+
+**2. The Off-Duty Casual Look**
+*   **Top:** A striped oversized button-down shirt (blue and white), worn unbuttoned over a plain white crewneck t-shirt.
+*   **Bottom:** Straight-leg medium wash blue jeans (creating a cool denim-on-denim contrast).
+*   **Footwear:** Canvas low-top sneakers (like Converse All-Stars) or comfortable loafers.
+*   **Accessories:** A minimalist leather crossbody bag and baseball cap.
+*   *Why it works:* Layering the longer button-down underneath the cropped jacket creates a stylish, high-contrast silhouette.
+
+  Fit card: Finally letting go of this cropped light wash denim jacket because I literally never reach for it, but it’s so good for throwing overbaby tees or layering with button-downs. Grabbed it thrifting a while ago and it's just sitting in my closet. Listed on my Poshmark for $42 if anyone wants to give it a better home!
+
+0 model calls this session, 2 served from cache
+
+```
+
+**Model unavailable**
+
+```
+python app.py ask 'black leather boots under $60' --trace
+[1] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 9 items: Platform Mary Janes — Black Patent, Oversized Flannel Shirt — Plaid Red/Black, Leather Belt — Brown, Braided … +6 more
+[2] suggest_outfit
+      in:  Platform Mary Janes — Black Patent ($55.0, depop)
+      out: Here are two ways to style your new platform Mary Janes using pieces from your wardrobe:  **Outfit 1: Casual Y…
+[3] create_fit_card
+      in:  Platform Mary Janes — Black Patent ($55.0, depop)
+      out: Obsessed is an understatement for these chunky patent Mary Janes 😭 Grabbed them thrifted and they’re giving th…
+
+  Found:    Platform Mary Janes — Black Patent — $55.0 on depop
+
+  Outfit:   Here are two ways to style your new platform Mary Janes using pieces from your wardrobe:
+
+**Outfit 1: Casual Y2K Streetwear**
+*   **The Look:** Baggy dark-wash jeans + white ribbed tank top + black cropped zip hoodie (open) + platform Mary Janes + black crossbody bag.
+*   **Why it works:** The tight white tank contrasts with the baggy denim for a classic 90s/Y2K silhouette, while the cropped black hoodie pulls in the black of the shoes to tie the whole outfit together.
+
+**Outfit 2: High-Contrast Edgy Neutral**
+*   **The Look:** Wide-leg khaki trousers + white ribbed tank top + vintage black denim jacket + platform Mary Janes.
+*   **Why it works:** The structured khaki trousers tone down the intense goth vibe of the shoes, creating a balanced, cool-girl mix of tailoringand grunge. Adding the black denim jacket mirrors the footwear for a cohesive finish.
+
+  Fit card: Obsessed is an understatement for these chunky patent Mary Janes 😭 Grabbed them thrifted and they’re giving the ultimate 90s/Y2K streetwear vibe, but I just don’t reach for them enough. Asking $55 shipped on Depop so someone can actually wear them!
+
+0 model calls this session, 2 served from cache
 ```
 
 **On the MCP move:** <!-- what changed in your code, and whether anything
